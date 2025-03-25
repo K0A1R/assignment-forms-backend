@@ -12,6 +12,7 @@ import {
 import { Formik } from "formik";
 import * as yup from "yup";
 import { useRouter } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const formSchema = yup.object().shape({
   firstName: yup
@@ -22,9 +23,23 @@ const formSchema = yup.object().shape({
     .string()
     .required("Last name is required")
     .min(2, "Name is too short"),
-  // ADD Email HERE -- REMOVE COMMENT AFTER
-  // ADD Phone HERE -- REMOVE AFTER
-  // ADD Job Title OR Date of Birth HERE -- REMOVE COMMENT AFTER
+  email: yup
+  .string()
+  .email('Invalid email')
+  .required('Email is required'),
+  phoneNumber: yup
+  .string()
+  .matches(/^\d{10,15}$/, 'Invalid phone number')
+  .required('Phone number is required'),
+  dob: yup
+  .date()
+  .required()
+  .test("age", "You must be at least 18 years old", (value) => {
+    const today = new Date(); 
+    const birthDate = new Date(value); 
+    const age = today.getFullYear() - birthDate.getFullYear(); 
+    return age >= 18;
+  })
 });
 
 const form = () => {
@@ -37,6 +52,9 @@ const form = () => {
           initialValues={{
             firstName: "",
             lastName: "",
+            email: "",
+            phoneNumber: "",
+            dob: "",
           }}
           validationSchema={formSchema}
           onSubmit={(values) => {
@@ -44,7 +62,7 @@ const form = () => {
             router.push("/");
           }}
         >
-          {({ handleChange, handleBlur, handleSubmit, values, errors }) => (
+          {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
             <View>
               {/* Form Fields */}
               <TextInput
@@ -67,8 +85,27 @@ const form = () => {
               {errors.lastName && (
                 <Text style={styles.errorText}>{errors.lastName}</Text>
               )}
-              {/* ADD Email HERE -- REMOVE COMMENT AFTER */}
-              {/* ADD Phone HERE -- REMOVE AFTER */}
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                keyboardType="email-address"
+                onChangeText={handleChange("email")}
+                onBlur={handleBlur("email")}
+              value={values.email}
+              />
+              {touched.email && errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+              <TextInput
+              style={styles.input}
+              keyboardType="phone-pad"
+              onChangeText={handleChange("phoneNumber")}
+              onBlur={handleBlur("phoneNumber")}
+              value={values.phoneNumber}
+              />
+              {touched.phoneNumber && errors.phoneNumber && (
+                <Text style={styles.errorText}>{errors.phoneNumber}</Text>
+              )}
               {/* ADD Job Title OR Date of Birth HERE -- REMOVE COMMENT AFTER */}
 
               {/* Form Submit Button */}
