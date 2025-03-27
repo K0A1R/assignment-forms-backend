@@ -14,6 +14,8 @@ import { Formik } from "formik";
 import * as yup from "yup";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const formSchema = yup.object().shape({
   firstName: yup
@@ -30,12 +32,22 @@ const formSchema = yup.object().shape({
     .matches(/^\+?\d{10,15}$/, "Invalid phone number")
     .required("Phone number is required"),
   dob: yup
-    .string()
-    .required()
+    .date()
+    .required("Date of Birth is required")
     .test("age", "You must be at least 18 years old", (value) => {
+      if (!value) return false;
       const today = new Date();
       const birthDate = new Date(value);
-      const age = today.getFullYear() - birthDate.getFullYear();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDifference = today.getMonth() - birthDate.getMonth();
+
+      if (
+        monthDifference < 0 ||
+        (monthDifference === 0 && today.getDate() < birthDate.getDate())
+      ) {
+        age--;
+      }
+
       return age >= 18;
     }),
 });
@@ -123,37 +135,64 @@ const form = () => {
                 <Text style={styles.errorText}>{errors.phoneNumber}</Text>
               )}
 
-              {/* DOB selection */}
-              <TouchableOpacity
-                style={styles.input}
-                onPress={() => setShowPicker(true)}
-              >
-                <Text style={{ color: values.dob ? "black" : "gray" }}>
-                  {values.dob
-                    ? new Date(values.dob).toDateString()
-                    : "Select Date of Birth"}
-                </Text>
-              </TouchableOpacity>
-              {errors.dob && touched.dob && (
-                <Text style={styles.errorText}>{errors.dob}</Text>
-              )}
+              {/* DOB Selection */}
+              {Platform.OS === "web" ? (
+                <View style={styles.webDatePickerContainer}>
+                  <DatePicker
+                    selected={values.dob ? new Date(values.dob) : null}
+                    onChange={(date) => {
+                      if (date) {
+                        const formattedDate = date.toISOString().split("T")[0];
+                        setFieldValue("dob", formattedDate);
+                        setFieldTouched("dob", true);
+                      }
+                    }}
+                    dateFormat="yyyy-MM-dd"
+                    showYearDropdown
+                    showMonthDropdown
+                    scrollableYearDropdown
+                    dropdownMode="select"
+                    placeholderText="Select Date of Birth"
+                    className="custom-datepicker-input"
+                  />
+                  {errors.dob && touched.dob && (
+                    <Text style={styles.errorText}>{errors.dob}</Text>
+                  )}
+                </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.input}
+                    onPress={() => setShowPicker(true)}
+                  >
+                    <Text style={{ color: values.dob ? "black" : "gray" }}>
+                      {values.dob
+                        ? new Date(values.dob).toDateString()
+                        : "Select Date of Birth"}
+                    </Text>
+                  </TouchableOpacity>
+                  {errors.dob && touched.dob && (
+                    <Text style={styles.errorText}>{errors.dob}</Text>
+                  )}
 
-              {showPicker && (
-                <DateTimePicker
-                  value={values.dob ? new Date(values.dob) : new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowPicker(false);
-                    if (selectedDate) {
-                      const formattedDate = selectedDate
-                        .toISOString()
-                        .split("T")[0];
-                      setFieldValue("dob", formattedDate);
-                      setFieldTouched("dob", true);
-                    }
-                  }}
-                />
+                  {showPicker && (
+                    <DateTimePicker
+                      value={values.dob ? new Date(values.dob) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowPicker(false);
+                        if (selectedDate) {
+                          const formattedDate = selectedDate
+                            .toISOString()
+                            .split("T")[0];
+                          setFieldValue("dob", formattedDate);
+                          setFieldTouched("dob", true);
+                        }
+                      }}
+                    />
+                  )}
+                </>
               )}
 
               {/* Form Submit Button */}
@@ -193,6 +232,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 5,
     backgroundColor: "#FFFFFF",
+  },
+  webDatePickerContainer: {
+    width: 280,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    marginVertical: 5,
+    justifyContent: "center",
   },
   errorText: {
     color: "red",
