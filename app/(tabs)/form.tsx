@@ -1,3 +1,4 @@
+// form
 import {
   StyleSheet,
   Text,
@@ -7,6 +8,8 @@ import {
   StatusBar,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 
 import { useState } from "react";
@@ -16,6 +19,10 @@ import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
+import { auth, db } from "../../firebaseConfig";
+import { collection, addDoc } from "firebase/firestore";
+import { useAuth } from "../../authContext";
 
 const formSchema = yup.object().shape({
   firstName: yup
@@ -55,6 +62,43 @@ const formSchema = yup.object().shape({
 const form = () => {
   const router = useRouter();
   const [showPicker, setShowPicker] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+
+  const handleSubmitForm = async (values: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    dob: string;
+  }) => {
+    setLoading(true);
+    try {
+      if (!user) {
+        Alert.alert("Error", "You must be logged in to submit this form");
+        router.push("/signin");
+        return;
+      }
+
+      await addDoc(collection(db, "formSubmissions"), {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        phoneNumber: values.phoneNumber,
+        dob: values.dob,
+        userId: user.uid,
+        submittedAt: new Date().toISOString(),
+      });
+
+      Alert.alert("Success", "Form submitted successfully!");
+      router.push("/");
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to submit form. Please try again.");
+      console.error("Error submitting form: ", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,10 +113,7 @@ const form = () => {
             dob: "",
           }}
           validationSchema={formSchema}
-          onSubmit={(values) => {
-            console.log(values);
-            router.push("/");
-          }}
+          onSubmit={handleSubmitForm}
         >
           {({
             handleChange,
@@ -93,7 +134,7 @@ const form = () => {
                 onBlur={handleBlur("firstName")}
                 value={values.firstName}
               />
-              {errors.firstName && (
+              {touched.firstName && errors.firstName && (
                 <Text style={styles.errorText}>{errors.firstName}</Text>
               )}
 
@@ -105,7 +146,7 @@ const form = () => {
                 onBlur={handleBlur("lastName")}
                 value={values.lastName}
               />
-              {errors.lastName && (
+              {touched.lastName && errors.lastName && (
                 <Text style={styles.errorText}>{errors.lastName}</Text>
               )}
 
@@ -114,6 +155,7 @@ const form = () => {
                 style={styles.input}
                 placeholder="Email"
                 keyboardType="email-address"
+                autoCapitalize="none"
                 onChangeText={handleChange("email")}
                 onBlur={handleBlur("email")}
                 value={values.email}
@@ -197,10 +239,15 @@ const form = () => {
 
               {/* Form Submit Button */}
               <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={() => handleSubmit()}
+                disabled={loading}
               >
-                <Text style={styles.buttonText}>Submit Form</Text>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.buttonText}>Submit Form</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -249,12 +296,15 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#007aff",
-    paddingVertical: 10,
+    paddingVertical: 15,
     paddingHorizontal: 20,
     borderRadius: 8,
     marginVertical: 10,
     width: 280,
     alignItems: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: "#FFFFFF",
